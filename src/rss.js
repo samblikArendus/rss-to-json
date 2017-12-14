@@ -2,37 +2,32 @@
 'use strict';
 var util = require('util'),
   xml2js = require('xml2js'),
+  fetch = require('node-fetch'),
   request = require('request');
 
 
 module.exports = {
   load: function (url, callback) {
     var $ = this;
-    request({
-      url: url,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:45.0) Gecko/20100101 Firefox/45.0',
-        accept: 'text/html,application/xhtml+xml'
-      },
-      pool: false,
-      followRedirect: true
-
-    }, function (error, response, xml) {
-      if (!error && response.statusCode == 200) {
-        var parser = new xml2js.Parser({ trim: false, normalize: true, mergeAttrs: true });
-        parser.addListener("error", function (err) {
-          callback(err, null);
-        });
-        parser.parseString(xml, function (err, result) {
-
-          callback(null, $.parser(result));
-          //console.log(JSON.stringify(result.rss.channel));
-        });
-
-      } else {
-        this.emit('error', new Error('Bad status code'));
+    fetch.default(url).then(data => {
+      // console.log(xml)
+      if (data.status == 200) {
+        return data.buffer();
       }
-    });
+    }).then(body => {
+      var parser = new xml2js.Parser({ trim: false, normalize: true, mergeAttrs: true });
+      parser.addListener("error", function (err) {
+        callback(err, null);
+      });
+      var xml = body.toString();
+      parser.parseString(xml, function (err, result) {
+
+        callback(null, $.parser(result));
+        //console.log(JSON.stringify(result.rss.channel));
+      });
+    }).catch(error => {
+      this.emit('error', new Error('Bad status code'));
+    })
 
   },
   parser: function (json) {
